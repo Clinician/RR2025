@@ -2122,8 +2122,6 @@ PODS:
     - React-perflogger (= 0.80.2)
     - React-utils (= 0.80.2)
     - SocketRocket
-  - RNAppleHealthKit (1.7.0):
-    - React
   - RNBootSplash (6.3.10):
     - boost
     - DoubleConversion
@@ -2317,7 +2315,6 @@ DEPENDENCIES:
   - ReactAppDependencyProvider (from `build/generated/ios`)
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
-  - RNAppleHealthKit (from `../node_modules/react-native-health`)
   - RNBootSplash (from `../node_modules/react-native-bootsplash`)
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
   - RNSVG (from `../node_modules/react-native-svg`)
@@ -2472,8 +2469,6 @@ EXTERNAL SOURCES:
     :path: build/generated/ios
   ReactCommon:
     :path: "../node_modules/react-native/ReactCommon"
-  RNAppleHealthKit:
-    :path: "../node_modules/react-native-health"
   RNBootSplash:
     :path: "../node_modules/react-native-bootsplash"
   RNCAsyncStorage:
@@ -2555,7 +2550,6 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 8df342c127fd0c1e30e8b9f71ff814c22414a7c0
   ReactCodegen: 439c427ccc115d71d16cc84256e5fbdc7fcef57a
   ReactCommon: 592ef441605638b95e533653259254b4bd35ff4f
-  RNAppleHealthKit: 86ef7ab70f762b802f5c5289372de360cca701f9
   RNBootSplash: 7f8f79309bc73584c50a630207b199e3f8d1438c
   RNCAsyncStorage: 1f04c8d56558e533277beda29187f571cf7eecb2
   RNSVG: d407e5f2ede12bbcd92e4d23a405ad5a5f7294a3
