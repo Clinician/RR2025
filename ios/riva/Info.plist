@@ -37,6 +37,8 @@
 	<string>This app needs access to read your health data to track blood pressure measurements.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>This app needs access to write health data to store your blood pressure measurements.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to the camera to record silent video for blood pressure measurement analysis.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

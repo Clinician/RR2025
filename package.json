@@ -15,7 +15,8 @@
     "react": "19.1.0",
     "react-native": "0.80.2",
     "react-native-bootsplash": "^6.3.10",
-    "react-native-svg": "^15.12.1"
+    "react-native-svg": "^15.12.1",
+    "react-native-vision-camera": "^4.7.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
