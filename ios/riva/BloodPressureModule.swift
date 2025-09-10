@@ -66,6 +66,7 @@ class BloodPressureModule: NSObject {
     
     // Parse the date string
     let dateFormatter = ISO8601DateFormatter()
+    dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     guard let measurementDate = dateFormatter.date(from: date) else {
       reject("INVALID_DATE", "Invalid date format provided", nil)
       return
@@ -117,6 +118,7 @@ class BloodPressureModule: NSObject {
     
     // Parse the date string
     let dateFormatter = ISO8601DateFormatter()
+    dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     guard let measurementDate = dateFormatter.date(from: date) else {
       reject("INVALID_DATE", "Invalid date format provided", nil)
       return
@@ -164,6 +166,7 @@ class BloodPressureModule: NSObject {
     
     // Parse the date string
     let dateFormatter = ISO8601DateFormatter()
+    dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     guard let measurementDate = dateFormatter.date(from: date) else {
       reject("INVALID_DATE", "Invalid date format provided", nil)
       return

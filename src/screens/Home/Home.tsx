@@ -401,13 +401,20 @@ const Home: React.FC = () => {
             {isRequestingPermissions ? (
               <ActivityIndicator size="small" color="#4A90E2" />
             ) : (
-              <Text style={styles.resultsButtonText}>Results</Text>
+              <>
+                <Text style={styles.resultsButtonText}>Results</Text>
+                <Image
+                  source={require('../../../assets/results.png')}
+                  style={styles.resultsButtonImage}
+                  resizeMode="contain"
+                />
+              </>
             )}
           </TouchableOpacity>
 
-          {/* Reference Button */}
+          {/* Calibrate Button */}
           <TouchableOpacity style={styles.referenceButton} onPress={handleReference}>
-            <Text style={styles.referenceButtonText}>Reference{'\n'}Measurement</Text>
+            <Text style={styles.referenceButtonText}>Calibrate</Text>
             <Image
               source={require('../../../assets/reference-measurement.png')}
               style={styles.referenceButtonImage}
@@ -483,15 +490,18 @@ const styles = StyleSheet.create({
   },
   buttonsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
     marginBottom: 20,
+    gap: 15,
   },
   resultsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
     borderRadius: 25,
     shadowColor: '#4A90E2',
     shadowOffset: {
@@ -503,13 +513,20 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderWidth: 2,
     borderColor: '#4A90E2',
-    minWidth: 120,
+    maxWidth: 160,
   },
   resultsButtonText: {
+    fontSize: 14,
     color: '#4A90E2',
-    fontSize: 18,
     fontWeight: '600',
+    flex: 1,
     textAlign: 'center',
+    lineHeight: 18,
+  },
+  resultsButtonImage: {
+    width: 40,
+    height: 40,
+    marginLeft: 12,
   },
   referenceButton: {
     flexDirection: 'row',
@@ -528,7 +545,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     borderWidth: 2,
     borderColor: '#4A90E2',
-    maxWidth: 180,
+    maxWidth: 160,
   },
   referenceButtonText: {
     fontSize: 14,

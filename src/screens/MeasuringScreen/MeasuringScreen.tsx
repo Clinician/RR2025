@@ -32,13 +32,15 @@ const MeasuringScreen: React.FC<MeasuringScreenProps> = ({ onStop, onComplete, o
   const [progress, setProgress] = useState(1);
   const [_, setRecordedVideoPath] = useState<string | undefined>();
   const [device, setDevice] = useState<any>(null);
+  const [format, setFormat] = useState<any>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [recordingStarted, setRecordingStarted] = useState(false);
+  const [cameraActivated, setCameraActivated] = useState(false);
   const cameraRef = useRef<Camera>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Initialize camera service and get device
+    // Initialize camera service (permissions only, don't activate camera yet)
     const initializeCamera = async () => {
       try {
         const initialized = await cameraService.initialize();
@@ -48,8 +50,9 @@ const MeasuringScreen: React.FC<MeasuringScreenProps> = ({ onStop, onComplete, o
           return;
         }
 
-        // Get camera device from service
+        // Get camera device and format from service but don't activate yet
         const cameraDevice = cameraService.getDevice();
+        const cameraFormat = cameraService.getFormat();
         if (!cameraDevice) {
           console.error('No camera device available');
           onError();
@@ -57,8 +60,20 @@ const MeasuringScreen: React.FC<MeasuringScreenProps> = ({ onStop, onComplete, o
         }
 
         setDevice(cameraDevice);
-        setCameraReady(true);
-        console.log('Camera initialized successfully');
+        setFormat(cameraFormat);
+        console.log('Camera service initialized (camera not yet activated)', {
+          device: cameraDevice.id,
+          format: cameraFormat ? {
+            width: cameraFormat.videoWidth,
+            height: cameraFormat.videoHeight,
+            maxFps: cameraFormat.maxFps
+          } : 'default'
+        });
+        
+        // Start the recording process after a short delay to allow UI to settle
+        setTimeout(() => {
+          startRecordingProcess();
+        }, 1000);
       } catch (error) {
         console.error('Error initializing camera:', error);
         onError();
@@ -77,12 +92,30 @@ const MeasuringScreen: React.FC<MeasuringScreenProps> = ({ onStop, onComplete, o
     };
   }, [onComplete, onError]);
 
-  // Separate effect to handle camera recording once camera is ready
-  useEffect(() => {
-    if (!cameraReady || !cameraRef.current) return;
+  // Function to activate camera and start recording (only when needed for PPG)
+  const startRecordingProcess = async () => {
+    try {
+      console.log('Starting PPG recording process - activating camera now');
+      
+      // Activate camera only when we're about to record
+      const activated = await cameraService.activateCamera();
+      if (!activated) {
+        console.error('Failed to activate camera');
+        onError();
+        return;
+      }
 
-    const startRecording = async () => {
-      try {
+      setCameraActivated(true);
+      setCameraReady(true);
+      
+      // Wait a moment for camera to be ready
+      setTimeout(async () => {
+        if (!cameraRef.current) {
+          console.error('Camera ref not available');
+          onError();
+          return;
+        }
+
         // Set camera reference
         cameraService.setCameraRef(cameraRef.current);
 
@@ -96,16 +129,14 @@ const MeasuringScreen: React.FC<MeasuringScreenProps> = ({ onStop, onComplete, o
           return;
         }
 
-        console.log('Flashlight on, recording started');
+        console.log('Camera activated, flashlight on, recording started for PPG signal');
         setRecordingStarted(true);
-      } catch (error) {
-        console.error('Error starting recording:', error);
-        onError();
-      }
-    };
-
-    startRecording();
-  }, [cameraReady, onError]);
+      }, 500);
+    } catch (error) {
+      console.error('Error in recording process:', error);
+      onError();
+    }
+  };
 
   // Timer effect - only starts when recording has begun
   useEffect(() => {
@@ -148,7 +179,7 @@ const MeasuringScreen: React.FC<MeasuringScreenProps> = ({ onStop, onComplete, o
     try {
       // Stop recording and get video path
       const result = await cameraService.stopRecording();
-      await cameraService.turnOffFlashlight();
+      await cameraService.deactivateCamera();
       
       if (result) {
         setRecordedVideoPath(result.path);
@@ -165,7 +196,7 @@ const MeasuringScreen: React.FC<MeasuringScreenProps> = ({ onStop, onComplete, o
   const handleStop = async () => {
     try {
       await cameraService.stopRecording();
-      await cameraService.turnOffFlashlight();
+      await cameraService.deactivateCamera();
       cameraService.cleanup();
       onStop();
     } catch (error) {
@@ -177,7 +208,7 @@ const MeasuringScreen: React.FC<MeasuringScreenProps> = ({ onStop, onComplete, o
   const handleSkip = async () => {
     try {
       await cameraService.stopRecording();
-      await cameraService.turnOffFlashlight();
+      await cameraService.deactivateCamera();
       cameraService.cleanup();
       onSkip();
     } catch (error) {
@@ -189,7 +220,7 @@ const MeasuringScreen: React.FC<MeasuringScreenProps> = ({ onStop, onComplete, o
   const handleError = async () => {
     try {
       await cameraService.stopRecording();
-      await cameraService.turnOffFlashlight();
+      await cameraService.deactivateCamera();
       cameraService.cleanup();
       onError();
     } catch (error) {
@@ -204,15 +235,17 @@ const MeasuringScreen: React.FC<MeasuringScreenProps> = ({ onStop, onComplete, o
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Camera View - Hidden behind UI but recording */}
-      {device && cameraReady && (
+      {/* Camera View - Only activated when recording PPG signal */}
+      {device && cameraActivated && cameraReady && (
         <Camera
           ref={cameraRef}
           style={styles.hiddenCamera}
           device={device}
+          format={format}
           isActive={true}
           video={true}
           audio={false}
+          fps={format?.maxFps || 60}
           torch={cameraService.flashlightOn ? 'on' : 'off'}
         />
       )}

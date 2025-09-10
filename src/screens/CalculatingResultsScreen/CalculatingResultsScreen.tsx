@@ -17,6 +17,10 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { video2PPGService } from '../../services/Video2PPGService';
 import { videoFrameExtractorService } from '../../services/VideoFrameExtractorService';
+import { fileShareService } from '../../services/FileShareService';
+import { ppgDataExportService } from '../../services/PPGDataExportService';
+import FilenamePrompt from '../../components/FilenamePrompt';
+import { PPGResult } from '../../types/Video2PPGConverter';
 
 const { width, height } = Dimensions.get('window');
 
@@ -26,7 +30,7 @@ interface CalculatingResultsScreenProps {
 }
 
 interface PPGProcessingResult {
-  averageSignals: number[];
+  rawSignals: PPGResult[];
   frameCount: number;
   processingTime: number;
   qualityWarnings: number;
@@ -40,6 +44,8 @@ const CalculatingResultsScreen: React.FC<CalculatingResultsScreenProps> = ({ onC
   ]);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [showActualProgress, setShowActualProgress] = useState(false);
+  const [showFilenamePrompt, setShowFilenamePrompt] = useState(false);
+  const [ppgProcessingResult, setPpgProcessingResult] = useState<PPGProcessingResult | null>(null);
 
   useEffect(() => {
     // Start the loading animation
@@ -111,7 +117,7 @@ const CalculatingResultsScreen: React.FC<CalculatingResultsScreenProps> = ({ onC
     // Process video frames and extract PPG signals
     const processVideoFrames = async (videoPath: string, metadata: any): Promise<PPGProcessingResult> => {
       const startTime = Date.now();
-      const allSignals: number[][] = [];
+      const allSignals: PPGResult[] = [];
       let qualityWarnings = 0;
       
       // Show actual progress bar once processing starts
@@ -156,7 +162,7 @@ const CalculatingResultsScreen: React.FC<CalculatingResultsScreenProps> = ({ onC
                 frameData.uvChannel
               );
               
-              allSignals.push(ppgResult.signals);
+              allSignals.push(ppgResult);
               
               if (ppgResult.qualityWarning) {
                 qualityWarnings++;
@@ -178,12 +184,11 @@ const CalculatingResultsScreen: React.FC<CalculatingResultsScreenProps> = ({ onC
         }
       }
       
-      // Aggregate results from all frames
-      const averageSignals = aggregateSignals(allSignals);
+      // Return raw signals without aggregation
       const processingTime = Date.now() - startTime;
       
       return {
-        averageSignals,
+        rawSignals: allSignals,
         frameCount: allSignals.length, // Use actual processed frames count
         processingTime,
         qualityWarnings
@@ -191,24 +196,6 @@ const CalculatingResultsScreen: React.FC<CalculatingResultsScreenProps> = ({ onC
     };
 
 
-    // Aggregate PPG signals from all frames
-    const aggregateSignals = (allSignals: number[][]): number[] => {
-      if (allSignals.length === 0) return [];
-      
-      const signalLength = allSignals[0].length;
-      const averageSignals = new Array(signalLength).fill(0);
-      
-      // Calculate average for each signal component
-      for (let i = 0; i < signalLength; i++) {
-        let sum = 0;
-        for (const signals of allSignals) {
-          sum += signals[i] || 0;
-        }
-        averageSignals[i] = sum / allSignals.length;
-      }
-      
-      return averageSignals;
-    };
 
     // Start video processing
     const startProcessing = async () => {
@@ -216,21 +203,25 @@ const CalculatingResultsScreen: React.FC<CalculatingResultsScreenProps> = ({ onC
       
       if (result) {
         console.log('Final PPG Processing Results:', {
-          averageSignals: result.averageSignals,
+          rawSignalsCount: result.rawSignals.length,
           frameCount: result.frameCount,
           processingTime: `${result.processingTime}ms`,
           qualityWarnings: result.qualityWarnings,
-          signalStrength: result.averageSignals.reduce((sum, val) => sum + val, 0) / result.averageSignals.length
         });
         
-        // Store results for use in next screen (you might want to pass this to onComplete)
-        // For now, we'll just log the results
+        // Store results and show filename prompt
+        setPpgProcessingResult(result);
+        
+        // Show filename prompt after a short delay
+        setTimeout(() => {
+          setShowFilenamePrompt(true);
+        }, 1000);
+      } else {
+        // If no PPG result, proceed to complete
+        setTimeout(() => {
+          onComplete();
+        }, 1000);
       }
-      
-      // Complete processing after a short delay to show final progress
-      setTimeout(() => {
-        onComplete();
-      }, 1000);
     };
 
     startProcessing();
@@ -246,6 +237,104 @@ const CalculatingResultsScreen: React.FC<CalculatingResultsScreenProps> = ({ onC
       animatedValues.forEach(animatedValue => animatedValue.stopAnimation());
     };
   }, [animatedValues, onComplete, videoPath]);
+
+  // Handle filename prompt share
+  const handleSharePPGData = async (filename: string) => {
+    if (!ppgProcessingResult) {
+      console.error('No PPG processing result available');
+      setShowFilenamePrompt(false);
+      onComplete();
+      return;
+    }
+
+    try {
+      // Format PPG data for export
+      const ppgData = ppgDataExportService.formatPPGData(
+        ppgProcessingResult,
+        videoPath,
+        {
+          savedAt: new Date().toISOString(),
+          userProvidedFilename: filename,
+        }
+      );
+
+      // Enhance with statistics
+      const enhancedPPGData = ppgDataExportService.enhancePPGData(ppgData);
+
+      // Validate data before sharing
+      const validation = ppgDataExportService.validatePPGData(enhancedPPGData);
+      if (!validation.isValid) {
+        console.error('PPG data validation failed:', validation.errors);
+        // Still proceed but log the issues
+      }
+
+      // Share PPG data
+      const result = await fileShareService.sharePPGData(filename, enhancedPPGData);
+      
+      if (result.success) {
+        console.log('PPG data successfully shared');
+      } else {
+        console.error('Failed to share PPG data:', result.error);
+      }
+    } catch (error) {
+      console.error('Error sharing PPG data:', error);
+    } finally {
+      setShowFilenamePrompt(false);
+      onComplete();
+    }
+  };
+
+  // Handle filename prompt save only
+  const handleSaveOnlyPPGData = async (filename: string) => {
+    if (!ppgProcessingResult) {
+      console.error('No PPG processing result available');
+      setShowFilenamePrompt(false);
+      onComplete();
+      return;
+    }
+
+    try {
+      // Format PPG data for export
+      const ppgData = ppgDataExportService.formatPPGData(
+        ppgProcessingResult,
+        videoPath,
+        {
+          savedAt: new Date().toISOString(),
+          userProvidedFilename: filename,
+        }
+      );
+
+      // Enhance with statistics
+      const enhancedPPGData = ppgDataExportService.enhancePPGData(ppgData);
+
+      // Validate data before saving
+      const validation = ppgDataExportService.validatePPGData(enhancedPPGData);
+      if (!validation.isValid) {
+        console.error('PPG data validation failed:', validation.errors);
+        // Still proceed but log the issues
+      }
+
+      // Save PPG data locally
+      const result = await fileShareService.savePPGDataLocally(filename, enhancedPPGData);
+      
+      if (result.success) {
+        console.log('PPG data successfully saved locally at:', result.filePath);
+      } else {
+        console.error('Failed to save PPG data locally:', result.error);
+      }
+    } catch (error) {
+      console.error('Error saving PPG data:', error);
+    } finally {
+      setShowFilenamePrompt(false);
+      onComplete();
+    }
+  };
+
+  // Handle filename prompt cancel
+  const handleCancelSave = () => {
+    setShowFilenamePrompt(false);
+    onComplete();
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -327,6 +416,16 @@ const CalculatingResultsScreen: React.FC<CalculatingResultsScreenProps> = ({ onC
           bronchi. It affects the voice box.
         </Text>
       </View>
+
+      {/* Filename Prompt Modal */}
+      <FilenamePrompt
+        visible={showFilenamePrompt}
+        onShare={handleSharePPGData}
+        onSaveOnly={handleSaveOnlyPPGData}
+        onCancel={handleCancelSave}
+        title="Share PPG Data"
+        placeholder={ppgDataExportService.generateDefaultFilename()}
+      />
     </SafeAreaView>
   );
 };
