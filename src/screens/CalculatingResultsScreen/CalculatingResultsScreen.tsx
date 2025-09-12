@@ -123,64 +123,44 @@ const CalculatingResultsScreen: React.FC<CalculatingResultsScreenProps> = ({ onC
       // Show actual progress bar once processing starts
       setShowActualProgress(true);
       
-      // Generate frame indices to extract (sample evenly across video)
-      const maxFrames = Math.min(75, metadata.totalFrames); // Process max 75 frames for optimal performance
-      const frameIndices = videoFrameExtractorService.generateFrameIndices(metadata.totalFrames, maxFrames);
-      const framesToProcess = frameIndices.length;
+      const framesToProcess = 1000; // metadata.totalFrames;
       
-      console.log(`Processing ${framesToProcess} frames from video with ${metadata.totalFrames} total frames`);
+      console.log(`Processing ${framesToProcess} frames from video`);
       
-      // Extract frames in batches for better performance
-      const batchSize = 25;
-      for (let batchStart = 0; batchStart < framesToProcess; batchStart += batchSize) {
-        const batchEnd = Math.min(batchStart + batchSize, framesToProcess);
-        const batchIndices = frameIndices.slice(batchStart, batchEnd);
-        
+      // Process frames directly without batching
+      for (let frameIndex = 0; frameIndex < framesToProcess; frameIndex++) {
         try {
-          // Extract batch of frames
-          const batchFrames = await videoFrameExtractorService.extractFrames(
+          // Update progress
+          const progress = (frameIndex / framesToProcess) * 100;
+          setProcessingProgress(progress);
+          
+          // Extract single frame
+          const frameData = await videoFrameExtractorService.extractFrame(
             videoPath, 
-            batchIndices, 
+            frameIndex, 
             metadata.totalFrames
           );
-          console.log(`Extracted ${batchFrames.length} frames for batch ${batchStart}-${batchEnd}`);
           
-          // Process each frame in the batch
-          for (let i = 0; i < batchFrames.length; i++) {
-            const frameData = batchFrames[i];
-            const currentFrameIndex = batchStart + i;
-            
-            try {
-              // Update progress
-              const progress = (currentFrameIndex / framesToProcess) * 100;
-              setProcessingProgress(progress);
-              
-              // Convert frame to PPG signals using base64 strings directly
-              const ppgResult = await video2PPGService.convertFrameiOS(
-                frameData.timestamp,
-                frameData.yChannel,
-                frameData.uvChannel
-              );
-              
-              allSignals.push(ppgResult);
-              
-              if (ppgResult.qualityWarning) {
-                qualityWarnings++;
-              }
-              
-              // Log progress every 10 frames
-              if (currentFrameIndex % 10 === 0) {
-                console.log(`Processed frame ${currentFrameIndex}/${framesToProcess}, signals: ${ppgResult.signals.length}`);
-              }
-              
-            } catch (error) {
-              console.error(`Error processing frame ${currentFrameIndex}:`, error);
-            }
+          // Convert frame to PPG signals using base64 strings directly
+          const ppgResult = await video2PPGService.convertFrameiOS(
+            frameData.timestamp,
+            frameData.yChannel,
+            frameData.uvChannel
+          );
+          
+          allSignals.push(ppgResult);
+          
+          if (ppgResult.qualityWarning) {
+            qualityWarnings++;
+          }
+          
+          // Log progress every 10 frames
+          if (frameIndex % 10 === 0) {
+            console.log(`Processed frame ${frameIndex}/${framesToProcess}, signals: ${ppgResult.signals.length}`);
           }
           
         } catch (error) {
-          console.error(`Error extracting batch ${batchStart}-${batchEnd}:`, error);
-          // Continue with next batch
+          console.error(`Error processing frame ${frameIndex}:`, error);
         }
       }
       
@@ -247,88 +227,37 @@ const CalculatingResultsScreen: React.FC<CalculatingResultsScreenProps> = ({ onC
       return;
     }
 
-    try {
-      // Format PPG data for export
-      const ppgData = ppgDataExportService.formatPPGData(
-        ppgProcessingResult,
-        videoPath,
-        {
-          savedAt: new Date().toISOString(),
-          userProvidedFilename: filename,
+    // First dismiss the modal
+    setShowFilenamePrompt(false);
+
+    // Wait for modal dismissal animation to complete before presenting document picker
+    setTimeout(async () => {
+      try {
+        // Format PPG data for export
+        const ppgData = ppgDataExportService.formatPPGData(
+          ppgProcessingResult,
+          {
+            savedAt: new Date().toISOString(),
+            userProvidedFilename: filename,
+          }
+        );
+
+        // Share PPG data
+        const result = await fileShareService.sharePPGData(filename, ppgData);
+        
+        if (result.success) {
+          console.log('PPG data successfully shared');
+        } else {
+          console.error('Failed to share PPG data:', result.error);
         }
-      );
-
-      // Enhance with statistics
-      const enhancedPPGData = ppgDataExportService.enhancePPGData(ppgData);
-
-      // Validate data before sharing
-      const validation = ppgDataExportService.validatePPGData(enhancedPPGData);
-      if (!validation.isValid) {
-        console.error('PPG data validation failed:', validation.errors);
-        // Still proceed but log the issues
+      } catch (error) {
+        console.error('Error sharing PPG data:', error);
+      } finally {
+        onComplete();
       }
-
-      // Share PPG data
-      const result = await fileShareService.sharePPGData(filename, enhancedPPGData);
-      
-      if (result.success) {
-        console.log('PPG data successfully shared');
-      } else {
-        console.error('Failed to share PPG data:', result.error);
-      }
-    } catch (error) {
-      console.error('Error sharing PPG data:', error);
-    } finally {
-      setShowFilenamePrompt(false);
-      onComplete();
-    }
+    }, 500); // 500ms delay to ensure modal dismissal completes
   };
 
-  // Handle filename prompt save only
-  const handleSaveOnlyPPGData = async (filename: string) => {
-    if (!ppgProcessingResult) {
-      console.error('No PPG processing result available');
-      setShowFilenamePrompt(false);
-      onComplete();
-      return;
-    }
-
-    try {
-      // Format PPG data for export
-      const ppgData = ppgDataExportService.formatPPGData(
-        ppgProcessingResult,
-        videoPath,
-        {
-          savedAt: new Date().toISOString(),
-          userProvidedFilename: filename,
-        }
-      );
-
-      // Enhance with statistics
-      const enhancedPPGData = ppgDataExportService.enhancePPGData(ppgData);
-
-      // Validate data before saving
-      const validation = ppgDataExportService.validatePPGData(enhancedPPGData);
-      if (!validation.isValid) {
-        console.error('PPG data validation failed:', validation.errors);
-        // Still proceed but log the issues
-      }
-
-      // Save PPG data locally
-      const result = await fileShareService.savePPGDataLocally(filename, enhancedPPGData);
-      
-      if (result.success) {
-        console.log('PPG data successfully saved locally at:', result.filePath);
-      } else {
-        console.error('Failed to save PPG data locally:', result.error);
-      }
-    } catch (error) {
-      console.error('Error saving PPG data:', error);
-    } finally {
-      setShowFilenamePrompt(false);
-      onComplete();
-    }
-  };
 
   // Handle filename prompt cancel
   const handleCancelSave = () => {
@@ -421,10 +350,9 @@ const CalculatingResultsScreen: React.FC<CalculatingResultsScreenProps> = ({ onC
       <FilenamePrompt
         visible={showFilenamePrompt}
         onShare={handleSharePPGData}
-        onSaveOnly={handleSaveOnlyPPGData}
         onCancel={handleCancelSave}
-        title="Share PPG Data"
-        placeholder={ppgDataExportService.generateDefaultFilename()}
+        title="Share PPG Data file"
+        placeholder="Enter File Name"
       />
     </SafeAreaView>
   );

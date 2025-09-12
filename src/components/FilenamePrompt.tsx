@@ -5,7 +5,7 @@
  * @format
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,11 +17,11 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import DeviceInfo from 'react-native-device-info';
 
 interface FilenamePromptProps {
   visible: boolean;
   onShare: (filename: string) => void;
-  onSaveOnly: (filename: string) => void;
   onCancel: () => void;
   title?: string;
   placeholder?: string;
@@ -30,14 +30,66 @@ interface FilenamePromptProps {
 const FilenamePrompt: React.FC<FilenamePromptProps> = ({
   visible,
   onShare,
-  onSaveOnly,
   onCancel,
-  title = 'Share PPG Data',
+  title = 'Upload PPG Data to iCloud',
   placeholder = 'Enter filename...',
 }) => {
   const [filename, setFilename] = useState('');
 
-  const handleAction = (action: 'share' | 'save') => {
+  // Generate default filename with device model and timestamp
+  const generateDefaultFilename = async (): Promise<string> => {
+    try {
+      console.log('Generating default filename...');
+      
+      // Get device model with timeout to prevent hanging
+      const deviceModelPromise = DeviceInfo.getModel();
+      const timeoutPromise = new Promise<string>((_, reject) => 
+        setTimeout(() => reject(new Error('Device info timeout')), 2000)
+      );
+      
+      const deviceModel = await Promise.race([deviceModelPromise, timeoutPromise]);
+      console.log('Device model retrieved:', deviceModel);
+      
+      const now = new Date();
+      
+      // Format timestamp as YYYY-MM-DD_HH-MM-SS
+      const timestamp = now.toISOString()
+        .replace(/T/, '_')
+        .replace(/:/g, '-')
+        .substring(0, 19); // Remove milliseconds and timezone
+      
+      // Clean device model (remove spaces and special characters, keep only alphanumeric)
+      const cleanModel = deviceModel.replace(/[^a-zA-Z0-9]/g, '');
+      console.log('Clean model:', cleanModel);
+      
+      const filename = `${cleanModel}_${timestamp}`;
+      console.log('Generated filename:', filename);
+      
+      return filename;
+    } catch (error) {
+      console.error('Error generating default filename:', error);
+      // Fallback to just timestamp if device info fails
+      const now = new Date();
+      const timestamp = now.toISOString()
+        .replace(/T/, '_')
+        .replace(/:/g, '-')
+        .substring(0, 19);
+      const fallbackFilename = `PPG_${timestamp}`;
+      console.log('Using fallback filename:', fallbackFilename);
+      return fallbackFilename;
+    }
+  };
+
+  // Set default filename when modal becomes visible
+  useEffect(() => {
+    if (visible && !filename) {
+      generateDefaultFilename().then(defaultName => {
+        setFilename(defaultName);
+      });
+    }
+  }, [visible]);
+
+  const handleUpload = () => {
     const trimmedFilename = filename.trim();
     
     if (!trimmedFilename) {
@@ -66,11 +118,7 @@ const FilenamePrompt: React.FC<FilenamePromptProps> = ({
       return;
     }
 
-    if (action === 'share') {
-      onShare(sanitizedFilename);
-    } else {
-      onSaveOnly(sanitizedFilename);
-    }
+    onShare(sanitizedFilename);
     setFilename(''); // Reset for next use
   };
 
@@ -94,7 +142,7 @@ const FilenamePrompt: React.FC<FilenamePromptProps> = ({
           <View style={styles.modalContent}>
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.subtitle}>
-              Enter a filename and choose how to share your PPG signal data
+              Enter a filename to upload your PPG signal data to iCloud Drive
             </Text>
             
             <TextInput
@@ -105,7 +153,7 @@ const FilenamePrompt: React.FC<FilenamePromptProps> = ({
               placeholderTextColor="#999"
               autoFocus={true}
               returnKeyType="done"
-              onSubmitEditing={() => handleAction('share')}
+              onSubmitEditing={handleUpload}
               maxLength={50}
             />
             
@@ -114,12 +162,8 @@ const FilenamePrompt: React.FC<FilenamePromptProps> = ({
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.saveOnlyButton} onPress={() => handleAction('save')}>
-                <Text style={styles.saveOnlyButtonText}>Save Only</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.shareButton} onPress={() => handleAction('share')}>
-                <Text style={styles.shareButtonText}>Share</Text>
+              <TouchableOpacity style={styles.shareButton} onPress={handleUpload}>
+                <Text style={styles.shareButtonText}>Upload to iCloud</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -180,7 +224,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 12,
   },
   cancelButton: {
     flex: 1,
@@ -189,7 +233,7 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
   },
   cancelButtonText: {
     fontSize: 14,
@@ -197,27 +241,12 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
   },
-  saveOnlyButton: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#4A90E2',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-  },
-  saveOnlyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4A90E2',
-    textAlign: 'center',
-  },
   shareButton: {
     flex: 1,
     backgroundColor: '#4A90E2',
     borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
   },
   shareButtonText: {
     fontSize: 14,

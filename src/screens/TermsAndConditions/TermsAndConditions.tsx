@@ -7,16 +7,38 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 interface TermsAndConditionsProps {
-  onAccept: () => void;
+  onAccept?: () => void;
+  onBack?: () => void;
+  showAcceptButton?: boolean;
 }
 
-const TermsAndConditions: React.FC<TermsAndConditionsProps> = ({ onAccept }) => {
+const TermsAndConditions: React.FC<TermsAndConditionsProps> = ({ onAccept, onBack, showAcceptButton = true }) => {
+  const BackIcon = () => (
+    <Svg width={24} height={24} viewBox="0 0 24 24">
+      <Path
+        d="M15 18L9 12L15 6"
+        stroke="#4A90E2"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </Svg>
+  );
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Terms and Conditions</Text>
+        {onBack && (
+          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+            <BackIcon />
+            <Text style={styles.backButtonText}>Privacy</Text>
+          </TouchableOpacity>
+        )}
+        <Text style={[styles.title]}>Terms And Conditions</Text>
+        {onBack && <View style={styles.headerSpacer} />}
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -45,19 +67,22 @@ const TermsAndConditions: React.FC<TermsAndConditionsProps> = ({ onAccept }) => 
         <Text style={styles.content}>
           Company reserves the right to change, suspend, or cease the Site with or without notice to you. You approved that Company will not be held liable to you or any third party for any change, interruption, or termination of the Site or any part.
         </Text>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            By tapping "Agree", I agree the terms and conditions
-          </Text>
-        </View>
+        {showAcceptButton && onAccept && (
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              By tapping "Agree", I agree the terms and conditions
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.acceptButton} onPress={onAccept}>
-          <Text style={styles.acceptButtonText}>Accept</Text>
-        </TouchableOpacity>
-      </View>
+      {showAcceptButton && onAccept && (
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.acceptButton} onPress={onAccept}>
+            <Text style={styles.acceptButtonText}>Accept</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -68,17 +93,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  backButtonText: {
+    fontSize: 17,
     color: '#4A90E2',
+    marginLeft: 4,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000',
     textAlign: 'center',
+    flex: 1,
+  },
+  headerSpacer: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,

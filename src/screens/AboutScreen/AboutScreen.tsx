@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Linking,
+  ImageBackground,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -58,6 +59,11 @@ const AboutScreen: React.FC<AboutScreenProps> = ({ onBack }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ImageBackground 
+        source={require('../../../assets/wavesSettingsBack.png')} 
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
@@ -112,6 +118,7 @@ const AboutScreen: React.FC<AboutScreenProps> = ({ onBack }) => {
         <Text style={styles.footerText}>Powered by </Text>
         <Text style={styles.footerBrand}>Altran & Pryv</Text>
       </View>
+      </ImageBackground>
     </SafeAreaView>
   );
 };
@@ -121,12 +128,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f7fa',
   },
+  backgroundImage: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#f5f7fa',
+    backgroundColor: 'transparent',
   },
   backButton: {
     flexDirection: 'row',

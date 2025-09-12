@@ -325,7 +325,7 @@ const Home: React.FC = () => {
 
   // Show terms and conditions screen if active
   if (showTermsAndConditions) {
-    return <TermsAndConditions onAccept={handleBackFromTermsAndConditions} />;
+    return <TermsAndConditions onBack={handleBackFromTermsAndConditions} showAcceptButton={false} />;
   }
 
   return (

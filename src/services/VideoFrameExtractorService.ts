@@ -128,25 +128,12 @@ class VideoFrameExtractorService {
   /**
    * Generate frame indices for sampling frames from video
    * @param totalFrames Total number of frames in video
-   * @param maxFrames Maximum number of frames to extract
+   * @param maxFrames Maximum number of frames to extract (ignored - now returns all frames)
    * @returns Array of frame indices
    */
   generateFrameIndices(totalFrames: number, maxFrames: number = 100): number[] {
-    if (totalFrames <= maxFrames) {
-      // Extract all frames if total is less than max
-      return Array.from({ length: totalFrames }, (_, i) => i);
-    }
-    
-    // Sample frames evenly across the video
-    const step = totalFrames / maxFrames;
-    const indices: number[] = [];
-    
-    for (let i = 0; i < maxFrames; i++) {
-      const frameIndex = Math.floor(i * step);
-      indices.push(frameIndex);
-    }
-    
-    return indices;
+    // Always extract all frames for better PPG signal quality
+    return Array.from({ length: totalFrames }, (_, i) => i);
   }
 }
 

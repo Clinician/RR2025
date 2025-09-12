@@ -20,6 +20,7 @@
 		BE9018372E64A24B00DC4882 /* Video2PPGConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9018342E64A24B00DC4882 /* Video2PPGConverter.swift */; };
 		BE9018382E64A25000DC4882 /* VideoFrameExtractorBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = BE9018392E64A25000DC4882 /* VideoFrameExtractorBridge.m */; };
 		BE90183A2E64A25000DC4882 /* VideoFrameExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE90183B2E64A25000DC4882 /* VideoFrameExtractor.swift */; };
+		BEC199AC2E73485C0048DFF1 /* DocumentPickerModule.m in Sources */ = {isa = PBXBuildFile; fileRef = BEC199AB2E73485C0048DFF1 /* DocumentPickerModule.m */; };
 		C323B823FAC24B63AAFE6C98 /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 348B245FBFDE45CB92F282A6 /* BootSplash.storyboard */; };
 /* End PBXBuildFile section */
 
@@ -43,6 +44,8 @@
 		BE9018352E64A24B00DC4882 /* Video2PPGConverterBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = Video2PPGConverterBridge.m; path = riva/Video2PPGConverterBridge.m; sourceTree = "<group>"; };
 		BE9018392E64A25000DC4882 /* VideoFrameExtractorBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = VideoFrameExtractorBridge.m; path = riva/VideoFrameExtractorBridge.m; sourceTree = "<group>"; };
 		BE90183B2E64A25000DC4882 /* VideoFrameExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VideoFrameExtractor.swift; path = riva/VideoFrameExtractor.swift; sourceTree = "<group>"; };
+		BEC199AA2E73485C0048DFF1 /* DocumentPickerModule.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DocumentPickerModule.h; sourceTree = "<group>"; };
+		BEC199AB2E73485C0048DFF1 /* DocumentPickerModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DocumentPickerModule.m; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F5D85DC128A24274BE2A65C5 /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = riva/Colors.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -63,6 +66,8 @@
 		13B07FAE1A68108700A75B9A /* riva */ = {
 			isa = PBXGroup;
 			children = (
+				BEC199AA2E73485C0048DFF1 /* DocumentPickerModule.h */,
+				BEC199AB2E73485C0048DFF1 /* DocumentPickerModule.m */,
 				BE9018342E64A24B00DC4882 /* Video2PPGConverter.swift */,
 				BE9018352E64A24B00DC4882 /* Video2PPGConverterBridge.m */,
 				BE90183B2E64A25000DC4882 /* VideoFrameExtractor.swift */,
@@ -225,9 +230,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-riva/Pods-riva-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-riva/Pods-riva-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -264,9 +273,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-riva/Pods-riva-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-riva/Pods-riva-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -284,6 +297,7 @@
 				BE9018362E64A24B00DC4882 /* Video2PPGConverterBridge.m in Sources */,
 				BE9018372E64A24B00DC4882 /* Video2PPGConverter.swift in Sources */,
 				BE9018382E64A25000DC4882 /* VideoFrameExtractorBridge.m in Sources */,
+				BEC199AC2E73485C0048DFF1 /* DocumentPickerModule.m in Sources */,
 				BE90183A2E64A25000DC4882 /* VideoFrameExtractor.swift in Sources */,
 				BE9018302E62DC8800DC4882 /* BloodPressureModule.swift in Sources */,
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
@@ -300,7 +314,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = riva/riva.entitlements;
-				CURRENT_PROJECT_VERSION = 8.3.1;
+				CURRENT_PROJECT_VERSION = 8.5.0;
 				DEVELOPMENT_TEAM = Y3NWJUVVCY;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = riva/Info.plist;
@@ -332,7 +346,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = riva/riva.entitlements;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 8.3.1;
+				CURRENT_PROJECT_VERSION = 8.5.0;
 				DEVELOPMENT_TEAM = Y3NWJUVVCY;
 				INFOPLIST_FILE = riva/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -423,10 +437,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -495,10 +506,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;

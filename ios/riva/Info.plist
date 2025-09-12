@@ -32,7 +32,9 @@
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>This app may access location data to provide enhanced health tracking features and personalized recommendations.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app may access your photo library to save or share blood pressure measurement results and reports.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>This app needs access to read your health data to track blood pressure measurements.</string>
 	<key>NSHealthUpdateUsageDescription</key>

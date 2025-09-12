@@ -1,41 +1,25 @@
 /**
  * FileShareService
- * Service for sharing PPG data files using native device sharing capabilities
+ * Service for sharing PPG data files using document picker
  *
  * @format
  */
 
-import { Alert, Platform } from 'react-native';
-import Share from 'react-native-share';
+import { Alert } from 'react-native';
 import RNFS from 'react-native-fs';
-
-interface PPGData {
-  timestamp: string;
-  rawSignals: number[][];
-  frameCount: number;
-  processingTime: number;
-  qualityWarnings: number;
-  videoPath?: string;
-  metadata: {
-    appVersion: string;
-    deviceInfo: string;
-    measurementDuration: number;
-    platform?: string;
-    platformVersion?: string;
-    [key: string]: any;
-  };
-  statistics?: Record<string, number>;
-}
-
-interface ShareResult {
-  success: boolean;
-  activityType?: string;
-  error?: string;
-}
+import { PPGData, ShareResult, UploadResult } from '../types/PPGData';
+import { documentPickerService } from './DocumentPickerService';
 
 class FileShareService {
+  private readonly localStoragePath: string;
+
+  constructor() {
+    // Use app's Documents directory for local storage fallback
+    this.localStoragePath = `${RNFS.DocumentDirectoryPath}/Riva_PPG`;
+  }
+
   /**
-   * Save PPG data as JSON file and share it
+   * Share PPG data using document picker (allows user to choose save location)
    */
   async sharePPGData(filename: string, ppgData: PPGData): Promise<ShareResult> {
     try {
@@ -67,97 +51,58 @@ class FileShareService {
         exportedAt: new Date().toISOString(),
         filename: filename,
         fileVersion: '1.0',
-        dataIntegrity: {
-          signalCount: ppgData.rawSignals.length,
-          checksumMD5: this.calculateSimpleChecksum(ppgData.rawSignals.flat()),
-        },
+        sharedViaDocumentPicker: true,
       };
 
       const jsonString = JSON.stringify(jsonData, null, 2);
 
-      // Create temporary file path
-      const documentsPath = RNFS.DocumentDirectoryPath;
-      const filePath = `${documentsPath}/${filename}.json`;
-
-      // Write JSON data to file
-      await RNFS.writeFile(filePath, jsonString, 'utf8');
-      console.log('PPG data file created at:', filePath);
-
-      // Verify file exists before sharing
-      const fileExists = await RNFS.exists(filePath);
-      if (!fileExists) {
-        throw new Error('Failed to create file for sharing');
-      }
-
-      // Get file stats for additional info
-      const fileStats = await RNFS.stat(filePath);
-      console.log('File created successfully:', {
-        path: filePath,
-        size: fileStats.size,
-        exists: fileExists
+      // Log PPG data details
+      console.log('PPG data prepared for sharing:', {
+        filename: `${filename}.json`,
+        size: jsonString.length
       });
 
-      // Prepare share options with proper file URL
-      const shareOptions = {
-        title: 'Share PPG Measurement Data',
-        message: `PPG measurement data from ${new Date().toLocaleDateString()}\n\nFile: ${filename}.json\nSize: ${Math.round(fileStats.size / 1024)}KB`,
-        url: `file://${filePath}`,
-        type: 'application/json',
-        filename: `${filename}.json`,
-        subject: `PPG Data - ${filename}`,
-        // Additional options for better compatibility
-        saveToFiles: true, // iOS Files app
-        showAppsToView: true,
-        isNewTask: true,
-      };
-
-      // Show native share dialog
-      const result = await Share.open(shareOptions);
-      
-      console.log('=== PPG DATA SHARE SUMMARY ===');
+      console.log('=== PPG DATA SHARING SUMMARY ===');
       console.log('Share Time:', new Date().toISOString());
       console.log('Filename:', `${filename}.json`);
-      console.log('File Path:', filePath);
       console.log('Data Size:', jsonString.length, 'bytes');
       console.log('Signal Count:', ppgData.rawSignals.length);
       console.log('Frame Count:', ppgData.frameCount);
       console.log('Processing Time:', ppgData.processingTime, 'ms');
       console.log('Quality Warnings:', ppgData.qualityWarnings);
-      if (ppgData.statistics) {
-        console.log('Signal Statistics:', ppgData.statistics);
+      console.log('=== END SHARING ===');
+
+      // Use document picker to let user choose save location
+      const pickerResult = await documentPickerService.saveFileWithPicker(filename, jsonString);
+      
+      if (pickerResult.success) {
+        console.log('File saved via document picker:', pickerResult.filePath);
+        return {
+          success: true,
+          filePath: pickerResult.filePath,
+        };
+      } else if (pickerResult.error === 'User cancelled file save') {
+        // User cancelled - this is not an error, just return success: false
+        return { success: false, error: 'User cancelled' };
+      } else {
+        // Fallback to local save if document picker fails
+        console.warn('Document picker failed, falling back to local save:', pickerResult.error);
+        return await this.savePPGDataLocally(filename, ppgData);
       }
-      console.log('Share Result:', result);
-      console.log('=== END SHARE ===');
-
-      // Clean up temporary file after sharing
-      setTimeout(async () => {
-        try {
-          await RNFS.unlink(filePath);
-          console.log('Temporary file cleaned up:', filePath);
-        } catch (error) {
-          console.log('Could not clean up temporary file:', error);
-        }
-      }, 5000); // Clean up after 5 seconds
-
-      return {
-        success: true,
-        activityType: typeof result === 'object' && result !== null ? 'shared' : 'unknown',
-      };
 
     } catch (error) {
       console.error('Failed to share PPG data:', error);
       
-      // Handle user cancellation gracefully
-      if (error && typeof error === 'object' && 'message' in error) {
-        const errorMessage = (error as Error).message;
-        if (errorMessage.includes('User did not share') || errorMessage.includes('cancelled')) {
-          return { success: false, error: 'User cancelled sharing' };
-        }
+      // Handle specific errors
+      let errorMessage = 'An error occurred while sharing your PPG data.';
+      
+      if (error instanceof Error) {
+        errorMessage = `Share failed: ${error.message}`;
       }
 
       Alert.alert(
         'Share Failed',
-        `An error occurred while sharing your PPG data:\n\n${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again.`,
+        `${errorMessage}\n\nPlease try again.`,
         [{ text: 'OK' }]
       );
       
@@ -169,9 +114,9 @@ class FileShareService {
   }
 
   /**
-   * Save PPG data to device storage without sharing
+   * Save PPG data to local device storage (fallback option)
    */
-  async savePPGDataLocally(filename: string, ppgData: PPGData): Promise<{ success: boolean; filePath?: string; error?: string }> {
+  async savePPGDataLocally(filename: string, ppgData: PPGData): Promise<UploadResult> {
     try {
       // Validate inputs
       if (!filename || filename.trim().length === 0) {
@@ -188,17 +133,16 @@ class FileShareService {
         exportedAt: new Date().toISOString(),
         filename: filename,
         fileVersion: '1.0',
-        dataIntegrity: {
-          signalCount: ppgData.rawSignals.length,
-          checksumMD5: this.calculateSimpleChecksum(ppgData.rawSignals.flat()),
-        },
+        savedLocally: true,
       };
 
       const jsonString = JSON.stringify(jsonData, null, 2);
 
-      // Create file path in documents directory
-      const documentsPath = RNFS.DocumentDirectoryPath;
-      const filePath = `${documentsPath}/${filename}.json`;
+      // Ensure local folder exists
+      await this.ensureLocalFolderExists();
+
+      // Create file path in app documents directory
+      const filePath = `${this.localStoragePath}/${filename}.json`;
 
       // Write JSON data to file
       await RNFS.writeFile(filePath, jsonString, 'utf8');
@@ -206,10 +150,21 @@ class FileShareService {
       console.log('PPG data saved locally at:', filePath);
       console.log('Data size:', jsonString.length, 'bytes');
 
+      Alert.alert(
+        'Saved Locally',
+        `Your PPG data has been saved to the app folder.\n\nFile: ${filename}.json\nSize: ${Math.round(jsonString.length / 1024)}KB\n\nYou can access this file through the Files app.`,
+        [{ text: 'OK' }]
+      );
+
       return { success: true, filePath };
 
     } catch (error) {
       console.error('Failed to save PPG data locally:', error);
+      Alert.alert(
+        'Save Failed',
+        `Failed to save PPG data locally: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        [{ text: 'OK' }]
+      );
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 
@@ -218,42 +173,35 @@ class FileShareService {
   }
 
   /**
-   * Calculate a simple checksum for data integrity verification
+   * Ensure the local storage folder exists
    */
-  private calculateSimpleChecksum(signals: number[]): string {
-    const sum = signals.reduce((acc, val) => acc + val, 0);
-    const avg = sum / signals.length;
-    return Math.round(avg * 1000000).toString(16);
-  }
-
-  /**
-   * Get list of available sharing options
-   */
-  async getAvailableShareOptions(): Promise<string[]> {
+  private async ensureLocalFolderExists(): Promise<void> {
     try {
-      // This would return available sharing apps, but react-native-share
-      // handles this automatically in the native share dialog
-      return ['Native Share Dialog'];
+      const folderExists = await RNFS.exists(this.localStoragePath);
+      if (!folderExists) {
+        await RNFS.mkdir(this.localStoragePath);
+        console.log('Created local storage folder:', this.localStoragePath);
+      }
     } catch (error) {
-      console.error('Failed to get share options:', error);
-      return [];
+      console.error('Failed to create local storage folder:', error);
+      throw new Error(`Could not create local storage folder: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   /**
-   * Check if sharing is available on the device
+   * Check if document picker is available
    */
-  async isShareAvailable(): Promise<boolean> {
-    try {
-      // react-native-share is available on both iOS and Android
-      return true;
-    } catch (error) {
-      console.error('Share not available:', error);
-      return false;
-    }
+  async isDocumentPickerAvailable(): Promise<boolean> {
+    return documentPickerService.isAvailable();
+  }
+
+  /**
+   * Get the local storage folder path
+   */
+  getLocalStoragePath(): string {
+    return this.localStoragePath;
   }
 }
 
 // Export singleton instance
 export const fileShareService = new FileShareService();
-export type { PPGData, ShareResult };

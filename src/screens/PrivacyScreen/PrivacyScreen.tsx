@@ -5,7 +5,7 @@
  * @format
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,9 @@ import {
   TouchableOpacity,
   Alert,
   Linking,
-  ActivityIndicator,
   ImageBackground,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import HealthService from '../../services/HealthService';
 
 interface PrivacyScreenProps {
   onBack: () => void;
@@ -26,7 +24,6 @@ interface PrivacyScreenProps {
 }
 
 const PrivacyScreen: React.FC<PrivacyScreenProps> = ({ onBack, onTermsAndConditions }) => {
-  const [isRequestingHealthPermissions, setIsRequestingHealthPermissions] = useState(false);
 
   const handleEnableCamera = () => {
     Alert.alert(
@@ -49,45 +46,25 @@ const PrivacyScreen: React.FC<PrivacyScreenProps> = ({ onBack, onTermsAndConditi
     );
   };
 
-  const handleAppleHealth = async () => {
-    try {
-      const permissionGranted = await HealthService.requestPermissions(setIsRequestingHealthPermissions);
-      
-      if (permissionGranted) {
-        Alert.alert(
-          'Apple Health Access Granted',
-          'You have successfully granted access to Apple Health. The app can now save your blood pressure and heart rate measurements.',
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert(
-          'Apple Health Access Required',
-          'Apple Health access is required to save your blood pressure and heart rate measurements. You can enable this in your device settings.',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-            },
-            {
-              text: 'Settings',
-              onPress: () => {
-                Linking.openURL('app-settings:').catch(() => {
-                  Alert.alert('Error', 'Unable to open settings');
-                });
-              },
-            },
-          ]
-        );
-      }
-    } catch (error) {
-      console.error('Error requesting Apple Health permissions:', error);
-      setIsRequestingHealthPermissions(false);
-      Alert.alert(
-        'Permission Error',
-        'Failed to request Apple Health permissions. Please try again.',
-        [{ text: 'OK' }]
-      );
-    }
+  const handleAppleHealth = () => {
+    Alert.alert(
+      'Apple Health Access',
+      'Apple Health access is required to save your blood pressure and heart rate measurements. To enable/disable Health permissions, go to the Health app → Data Access & Devices → riva.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Settings',
+          onPress: () => {
+            Linking.openURL('app-settings:').catch(() => {
+              Alert.alert('Error', 'Unable to open settings');
+            });
+          },
+        },
+      ]
+    );
   };
 
   const handleTermsAndConditions = () => {
@@ -220,19 +197,14 @@ const PrivacyScreen: React.FC<PrivacyScreenProps> = ({ onBack, onTermsAndConditi
             <TouchableOpacity 
               style={styles.settingsItem} 
               onPress={handleAppleHealth}
-              disabled={isRequestingHealthPermissions}
             >
               <View style={styles.settingsItemLeft}>
                 <View style={styles.iconContainer}>
                   <HealthIcon />
                 </View>
-                <Text style={styles.settingsItemText}>Sync with Apple Health</Text>
+                <Text style={styles.settingsItemText}>Enable Apple Health</Text>
               </View>
-              {isRequestingHealthPermissions ? (
-                <ActivityIndicator size="small" color="#4A90E2" />
-              ) : (
-                <ChevronIcon />
-              )}
+              <ChevronIcon />
             </TouchableOpacity>
 
             {/* Separator */}
