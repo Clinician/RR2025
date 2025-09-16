@@ -230,13 +230,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-riva/Pods-riva-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-riva/Pods-riva-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -273,13 +269,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-riva/Pods-riva-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-riva/Pods-riva-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -314,7 +306,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = riva/riva.entitlements;
-				CURRENT_PROJECT_VERSION = 8.5.0;
+				CURRENT_PROJECT_VERSION = 8.6.0;
 				DEVELOPMENT_TEAM = Y3NWJUVVCY;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = riva/Info.plist;
@@ -346,7 +338,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = riva/riva.entitlements;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 8.5.0;
+				CURRENT_PROJECT_VERSION = 8.6.0;
 				DEVELOPMENT_TEAM = Y3NWJUVVCY;
 				INFOPLIST_FILE = riva/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -437,7 +429,10 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = "$(inherited)  ";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					" ",
+				);
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -506,7 +501,10 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = "$(inherited)  ";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					" ",
+				);
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;

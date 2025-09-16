@@ -49,7 +49,7 @@ const PrivacyScreen: React.FC<PrivacyScreenProps> = ({ onBack, onTermsAndConditi
   const handleAppleHealth = () => {
     Alert.alert(
       'Apple Health Access',
-      'Apple Health access is required to save your blood pressure and heart rate measurements. To enable/disable Health permissions, go to Settings -> Health app → Data Access & Devices → riva.',
+      'Apple Health access is required to save your blood pressure and heart rate measurements. To enable/disable Health permissions, go to the Health app → Data Access & Devices → riva.',
       [
         {
           text: 'Cancel',

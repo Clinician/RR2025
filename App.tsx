@@ -9,8 +9,9 @@ import { useEffect, useState } from "react";
 import BootSplash from "react-native-bootsplash";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import HomeScreen from "./src/screens/Home/Home";
-import OnboardingScreen from "./src/screens/OnboardingScreen/OnboardingScreen";
-import TermsAndConditions from "./src/screens/TermsAndConditions/TermsAndConditions";
+import OnboardingScreen from "./src/screens/onboarding/Onboarding";
+import TermsAndConditions from "./src/screens/onboarding/TermsAndConditions";
+import { CalibrationProvider } from "./src/contexts/CalibrationContext";
 
 const ONBOARDING_COMPLETED_KEY = '@onboarding_completed';
 const TERMS_ACCEPTED_KEY = '@terms_accepted';
@@ -77,7 +78,11 @@ const App = () => {
   }
 
   // Show main screen for returning users
-  return <HomeScreen />;
+  return (
+    <CalibrationProvider>
+      <HomeScreen />
+    </CalibrationProvider>
+  );
 };
 
 export default App;

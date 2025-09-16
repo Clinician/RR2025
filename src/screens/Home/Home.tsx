@@ -5,7 +5,7 @@
  * @format
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,26 +13,42 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Dimensions,
-  Image,
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import CalibrationOffsetService from '../../services/CalibrationOffsetService';
 import Svg, { Path, Circle } from 'react-native-svg';
+import CirclesSvg from '../../../assets/circles.svg';
+import PhoneIconSvg from '../../../assets/icon-phone.svg';
+import ResultsSvg from '../../../assets/results.svg';
+import ReferenceMeasurementSvg from '../../../assets/reference-measurement.svg';
 import HealthService from '../../services/HealthService';
-import StartMeasurement from '../StartMeasurement/StartMeasurement';
-import MeasuringScreen from '../MeasuringScreen/MeasuringScreen';
-import RestartScreen from '../RestartScreen/RestartScreen';
-import ErrorScreen from '../ErrorScreen/ErrorScreen';
-import CalculatingResultsScreen from '../CalculatingResultsScreen/CalculatingResultsScreen';
+import StartMeasurement from '../measure/StartMeasurement';
+import MeasuringScreen from '../measure/Measuring';
+import RestartScreen from '../measure/Restart';
+import ErrorScreen from '../measure/Error';
+import CalculatingResultsScreen from '../measure/CalculatingResults';
 import ResultsScreen from '../ResultsScreen/ResultsScreen';
-import AboutScreen from '../AboutScreen/AboutScreen';
-import SettingsScreen from '../SettingsScreen/SettingsScreen';
-import PrivacyScreen from '../PrivacyScreen/PrivacyScreen';
-import TermsAndConditions from '../TermsAndConditions/TermsAndConditions';
+import AboutScreen from '../settings/About';
+import SettingsScreen from '../settings/Settings';
+import PrivacyScreen from '../settings/Privacy';
+import TermsAndConditions from '../onboarding/TermsAndConditions';
+import CalibrationInfo from '../calibration/CalibrationInfo';
+import ReferenceMeasurement from '../calibration/ReferenceMeasurement';
+import CalibrationComplete from '../calibration/CalibrationComplete';
+import { useCalibration } from '../../contexts/CalibrationContext';
 
 const { width, height } = Dimensions.get('window');
 
 const Home: React.FC = () => {
+  const { 
+    setCalibrationMode, 
+    setReferenceMeasurement, 
+    resetCalibration, 
+    areStoredOffsetsValid, 
+    checkOffsetValidity,
+    isCalibrationMode 
+  } = useCalibration();
   const [showStartMeasurement, setShowStartMeasurement] = useState(false);
   const [showMeasuringScreen, setShowMeasuringScreen] = useState(false);
   const [showRestartScreen, setShowRestartScreen] = useState(false);
@@ -43,18 +59,89 @@ const Home: React.FC = () => {
   const [showSettingsScreen, setShowSettingsScreen] = useState(false);
   const [showPrivacyScreen, setShowPrivacyScreen] = useState(false);
   const [showTermsAndConditions, setShowTermsAndConditions] = useState(false);
+  const [showCalibrationInfo, setShowCalibrationInfo] = useState(false);
+  const [showReferenceMeasurement, setShowReferenceMeasurement] = useState(false);
+  const [showCalibrationComplete, setShowCalibrationComplete] = useState(false);
   const [isRequestingPermissions, setIsRequestingPermissions] = useState(false);
   const [recordedVideoPath, setRecordedVideoPath] = useState<string | undefined>();
+  const [calibrationInfo, setCalibrationInfo] = useState<{
+    isValid: boolean;
+    timestamp: Date | null;
+    calibrationType: 'expert' | 'home' | null;
+    ageMinutes: number | null;
+  } | null>(null);
+
+  // Check offset validity and load calibration info on component mount and when returning from other screens
+  useEffect(() => {
+    const loadCalibrationData = async () => {
+      checkOffsetValidity();
+      const info = await CalibrationOffsetService.getCalibrationInfo();
+      setCalibrationInfo(info);
+    };
+    
+    loadCalibrationData();
+  }, []);
+
+  // Format calibration status message
+  const getCalibrationStatusMessage = (): string => {
+    if (!calibrationInfo || !calibrationInfo.isValid) {
+      return '';
+    }
+
+    const { timestamp, calibrationType, ageMinutes } = calibrationInfo;
+    
+    if (!timestamp || ageMinutes === null) {
+      return '';
+    }
+
+    const now = new Date();
+    const calibrationDate = new Date(timestamp);
+    
+    // Check if calibration was today
+    const isToday = now.toDateString() === calibrationDate.toDateString();
+    
+    // Check if calibration was yesterday
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = yesterday.toDateString() === calibrationDate.toDateString();
+    
+    const dateText = isToday 
+      ? 'today' 
+      : isYesterday
+      ? 'yesterday'
+      : calibrationDate.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          year: calibrationDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+        });
+    
+    const calibrationTypeText = calibrationType === 'expert' ? 'by an expert' : 'at home';
+    
+    return `Calibrated ${dateText} ${calibrationTypeText}`;
+  };
 
   const handleMeasure = async () => {
     console.log('Measure button pressed');
     
-    // Request Health permissions
+    // If offsets are not valid, do nothing (button should be disabled)
+    if (!areStoredOffsetsValid) {
+      console.log('Measure button disabled - no valid calibration offsets');
+      return;
+    }
+
+    // Check offset validity again before measurement
+    const isValid = await checkOffsetValidity();
+    if (!isValid) {
+      console.log('Measure button disabled - calibration offsets expired');
+      return;
+    }
+    
+    // Request Health permissions for measurement
     try {
       const permissionGranted = await HealthService.requestPermissions(setIsRequestingPermissions);
       
       if (permissionGranted) {
-        console.log('Health permissions granted');
+        console.log('Health permissions granted, starting measurement');
         setShowStartMeasurement(true);
       } else {
         // Show alert with retry option
@@ -161,7 +248,9 @@ const Home: React.FC = () => {
   };
 
   const handleReference = () => {
-    console.log('Reference measurements button pressed');
+    console.log('Calibrate button pressed');
+    setCalibrationMode(true);
+    setShowCalibrationInfo(true);
   };
 
   const handleSettings = () => {
@@ -213,6 +302,11 @@ const Home: React.FC = () => {
   const handleBackFromStartMeasurement = () => {
     console.log('Back from StartMeasurement pressed');
     setShowStartMeasurement(false);
+    
+    // If we're in calibration mode, go back to reference measurement
+    if (isCalibrationMode) {
+      setShowReferenceMeasurement(true);
+    }
   };
 
   const handleStartMeasurement = () => {
@@ -271,9 +365,45 @@ const Home: React.FC = () => {
     setShowStartMeasurement(true);
   };
 
+  // Calibration workflow handlers
+  const handleBackFromCalibrationInfo = () => {
+    setShowCalibrationInfo(false);
+    resetCalibration();
+  };
+
+  const handleStartCalibration = () => {
+    setShowCalibrationInfo(false);
+    setShowReferenceMeasurement(true);
+  };
+
+  const handleBackFromReferenceMeasurement = () => {
+    setShowReferenceMeasurement(false);
+    setShowCalibrationInfo(true);
+  };
+
+  const handleReferenceMeasurementNext = (systolic: number, diastolic: number, measurementType: import('../../contexts/CalibrationContext').MeasurementType) => {
+    setReferenceMeasurement({
+      systolic,
+      diastolic,
+      timestamp: new Date(),
+      measurementType,
+    });
+    setShowReferenceMeasurement(false);
+    setShowStartMeasurement(true);
+  };
+
+  const handleCalibrationComplete = () => {
+    setShowCalibrationComplete(false);
+    resetCalibration();
+  };
+
   // Show start measurement screen if active
   if (showStartMeasurement) {
-    return <StartMeasurement onBack={handleBackFromStartMeasurement} onStart={handleStartMeasurement} />;
+    return <StartMeasurement 
+      onBack={handleBackFromStartMeasurement} 
+      onStart={handleStartMeasurement} 
+      isCalibrationFlow={isCalibrationMode}
+    />;
   }
 
   // Show measuring screen if active
@@ -300,12 +430,29 @@ const Home: React.FC = () => {
 
   // Show calculating results screen if active
   if (showCalculatingResults) {
-    return <CalculatingResultsScreen onComplete={handleCalculationComplete} videoPath={recordedVideoPath} />;
+    return (
+      <CalculatingResultsScreen 
+        onComplete={handleCalculationComplete} 
+        onCalibrationComplete={() => {
+          setShowCalculatingResults(false);
+          setShowCalibrationComplete(true);
+        }}
+        videoPath={recordedVideoPath} 
+      />
+    );
   }
 
   // Show results screen if active
   if (showResultsScreen) {
-    return <ResultsScreen onBack={handleBackFromResults} />;
+    return (
+      <ResultsScreen 
+        onBack={handleBackFromResults} 
+        onCalibrationComplete={() => {
+          setShowResultsScreen(false);
+          setShowCalibrationComplete(true);
+        }}
+      />
+    );
   }
 
   // Show settings screen if active
@@ -328,16 +475,30 @@ const Home: React.FC = () => {
     return <TermsAndConditions onBack={handleBackFromTermsAndConditions} showAcceptButton={false} />;
   }
 
+  // Show calibration info screen if active
+  if (showCalibrationInfo) {
+    return <CalibrationInfo onBack={handleBackFromCalibrationInfo} onStart={handleStartCalibration} />;
+  }
+
+  // Show reference measurement screen if active
+  if (showReferenceMeasurement) {
+    return <ReferenceMeasurement onBack={handleBackFromReferenceMeasurement} onNext={handleReferenceMeasurementNext} />;
+  }
+
+  // Show calibration complete screen if active
+  if (showCalibrationComplete) {
+    return <CalibrationComplete onComplete={handleCalibrationComplete} />;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Background waves */}
-      <View style={styles.backgroundWaves}>
-        <Svg width={width} height={200} viewBox={`0 0 ${width} 200`} style={styles.bottomWave}>
-          <Path
-            d={`M0,100 Q${width/4},120 ${width/2},100 T${width},100 L${width},200 L0,200 Z`}
-            fill="#E8F4FD"
-          />
-        </Svg>
+      {/* Background circles */}
+      <View style={styles.backgroundCircles}>
+        <CirclesSvg
+          width={width}
+          height={356}
+          style={styles.circlesImage}
+        />
       </View>
 
       {/* Settings/About Button */}
@@ -371,23 +532,42 @@ const Home: React.FC = () => {
         {/* Main Measure Button */}
         <View style={styles.measureButtonContainer}>
           <TouchableOpacity 
-            style={styles.measureButton} 
+            style={[
+              styles.measureButton, 
+              !areStoredOffsetsValid && styles.inactiveMeasureButton
+            ]} 
             onPress={handleMeasure}
-            disabled={isRequestingPermissions}
+            disabled={isRequestingPermissions || !areStoredOffsetsValid}
           >
             {isRequestingPermissions ? (
               <ActivityIndicator size="large" color="#FFFFFF" />
             ) : (
               <>
-                <Image
-                  source={require('../../../assets/icon-phone.png')}
+                <PhoneIconSvg
+                  width={40}
+                  height={40}
                   style={styles.phoneIcon}
-                  resizeMode="contain"
                 />
-                <Text style={styles.measureText}>Measure</Text>
+                <Text style={[
+                  styles.measureText,
+                  !areStoredOffsetsValid && styles.inactiveMeasureText
+                ]}>
+                  Measure
+                </Text>
               </>
             )}
           </TouchableOpacity>
+          
+          {/* Calibration messages */}
+          {!areStoredOffsetsValid ? (
+            <Text style={styles.calibrationMessage}>
+              Please calibrate your device before measuring
+            </Text>
+          ) : (
+            <Text style={styles.calibrationStatusMessage}>
+              {getCalibrationStatusMessage()}
+            </Text>
+          )}
         </View>
 
         {/* Results and Reference Buttons Row */}
@@ -403,10 +583,10 @@ const Home: React.FC = () => {
             ) : (
               <>
                 <Text style={styles.resultsButtonText}>Results</Text>
-                <Image
-                  source={require('../../../assets/results.png')}
+                <ResultsSvg
+                  width={40}
+                  height={40}
                   style={styles.resultsButtonImage}
-                  resizeMode="contain"
                 />
               </>
             )}
@@ -415,10 +595,10 @@ const Home: React.FC = () => {
           {/* Calibrate Button */}
           <TouchableOpacity style={styles.referenceButton} onPress={handleReference}>
             <Text style={styles.referenceButtonText}>Calibrate</Text>
-            <Image
-              source={require('../../../assets/reference-measurement.png')}
+            <ReferenceMeasurementSvg
+              width={40}
+              height={40}
               style={styles.referenceButtonImage}
-              resizeMode="contain"
             />
           </TouchableOpacity>
         </View>
@@ -432,15 +612,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f7fa',
   },
-  backgroundWaves: {
+  backgroundCircles: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    width: '100%',
+    height: 356,
   },
-  bottomWave: {
-    position: 'absolute',
-    bottom: 0,
+  circlesImage: {
+    width: '100%',
+    height: '100%',
   },
   content: {
     flex: 1,
@@ -458,6 +640,7 @@ const styles = StyleSheet.create({
   measureButtonContainer: {
     marginTop: 80,
     marginBottom: 80,
+    alignItems: 'center',
     shadowColor: '#4A90E2',
     shadowOffset: {
       width: 0,
@@ -478,15 +661,34 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
   },
   phoneIcon: {
-    width: 40,
-    height: 40,
     marginBottom: 10,
-    tintColor: '#FFFFFF',
   },
   measureText: {
     color: 'white',
     fontSize: 24,
     fontWeight: '600',
+  },
+  inactiveMeasureButton: {
+    backgroundColor: '#B0B0B0',
+    opacity: 0.7,
+  },
+  inactiveMeasureText: {
+    color: '#FFFFFF',
+    opacity: 0.8,
+  },
+  calibrationMessage: {
+    fontSize: 14,
+    color: '#FF6B6B',
+    textAlign: 'center',
+    marginTop: 12,
+    fontWeight: '500',
+  },
+  calibrationStatusMessage: {
+    fontSize: 14,
+    color: '#4A90E2',
+    textAlign: 'center',
+    marginTop: 12,
+    fontWeight: '500',
   },
   buttonsRow: {
     flexDirection: 'row',
@@ -524,8 +726,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   resultsButtonImage: {
-    width: 40,
-    height: 40,
     marginLeft: 12,
   },
   referenceButton: {
@@ -556,8 +756,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   referenceButtonImage: {
-    width: 40,
-    height: 40,
     marginLeft: 12,
   },
   settingsContainer: {

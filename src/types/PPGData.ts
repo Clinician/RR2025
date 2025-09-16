@@ -7,12 +7,46 @@
 
 import { PPGResult } from './Video2PPGConverter';
 
+export interface PPGStatistics {
+  totalFrames: number;
+  validFrames: number;
+  qualityWarningFrames: number;
+  qualityScore: number;
+  signalStatistics: {
+    mean: number;
+    standardDeviation: number;
+    minimum: number;
+    maximum: number;
+    range: number;
+    variance: number;
+  };
+  temporalStatistics: {
+    averageTimestamp: number;
+    timestampRange: number;
+    samplingRate: number;
+    duration: number;
+  };
+  signalQuality: {
+    signalToNoiseRatio: number;
+    peakToPeakAmplitude: number;
+    rmsAmplitude: number;
+    zeroCrossings: number;
+  };
+  heartRateEstimation: {
+    estimatedBPM: number;
+    confidence: number;
+    peakCount: number;
+    rhythmRegularity: number;
+  };
+}
+
 export interface PPGData {
   timestamp: string;
   rawSignals: PPGResult[];
   frameCount: number;
   processingTime: number;
   qualityWarnings: number;
+  statistics: PPGStatistics;
   metadata: {
     appVersion: string;
     deviceInfo: string;

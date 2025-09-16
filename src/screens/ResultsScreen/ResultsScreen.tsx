@@ -1,10 +1,3 @@
-/**
- * ResultsScreen Component
- * Screen to display blood pressure results
- *
- * @format
- */
-
 import React, { useState } from 'react';
 import {
   View,
@@ -12,21 +5,21 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
-  Dimensions,
   Alert,
 } from 'react-native';
 import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
 import HealthService from '../../services/HealthService';
-
-const { width, height } = Dimensions.get('window');
+import { useCalibration } from '../../contexts/CalibrationContext';
 
 interface ResultsScreenProps {
   onBack: () => void;
   onSave?: () => void;
   onCalibrate?: () => void;
+  onCalibrationComplete?: () => void;
 }
 
-const ResultsScreen: React.FC<ResultsScreenProps> = ({ onBack, onSave, onCalibrate }) => {
+const ResultsScreen: React.FC<ResultsScreenProps> = ({ onBack, onSave, onCalibrate, onCalibrationComplete }) => {
+  const { isCalibrationMode, referenceMeasurement, setCalibrationOffset } = useCalibration();
   // Dummy values as requested: 75 BPM heart rate, 130/90 mmHg blood pressure
   const systolic = 130;
   const diastolic = 90;
@@ -37,6 +30,42 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ onBack, onSave, onCalibra
   const handleSave = async () => {
     setIsSaving(true);
     
+    // If in calibration mode, complete calibration instead of saving to Health
+    if (isCalibrationMode && referenceMeasurement) {
+      try {
+        // Calculate calibration offset between reference and measured values
+        const systolicOffset = referenceMeasurement.systolic - systolic;
+        const diastolicOffset = referenceMeasurement.diastolic - diastolic;
+        
+        // Store the calibration offset
+        setCalibrationOffset({
+          systolicOffset,
+          diastolicOffset,
+          timestamp: new Date(),
+        });
+        
+        console.log('Calibration completed:', {
+          reference: referenceMeasurement,
+          measured: { systolic, diastolic },
+          offset: { systolicOffset, diastolicOffset },
+        });
+        
+        // Navigate to calibration complete screen
+        onCalibrationComplete?.();
+      } catch (error) {
+        console.error('Error completing calibration:', error);
+        Alert.alert(
+          'Calibration Error',
+          'An error occurred while completing calibration.',
+          [{ text: 'OK' }]
+        );
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+    
+    // Normal flow: save to Apple Health
     try {
       // Request HealthKit permissions if not already granted
       const hasPermissions = await HealthService.requestPermissions();
@@ -175,21 +204,6 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ onBack, onSave, onCalibra
           <Text style={styles.statusText}>Your blood pressure is normal</Text>
         </View>
 
-        {/* Calibration warning */}
-        <View style={styles.warningContainer}>
-          <View style={styles.warningIcon}>
-            <Text style={styles.warningIconText}>⚠</Text>
-          </View>
-          <View style={styles.warningTextContainer}>
-            <Text style={styles.warningText}>
-              App is currently not calibrated and{'\n'}based on standard values 120/80
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.calibrateButton} onPress={onCalibrate}>
-            <Text style={styles.calibrateButtonText}>Calibrate</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Action buttons */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.cancelButton} onPress={onBack}>
@@ -202,7 +216,10 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({ onBack, onSave, onCalibra
             disabled={isSaving}
           >
             <Text style={styles.saveButtonText}>
-              {isSaving ? 'Saving...' : 'Save'}
+              {isSaving 
+                ? (isCalibrationMode ? 'Completing...' : 'Saving...') 
+                : (isCalibrationMode ? 'Complete Calibration' : 'Save')
+              }
             </Text>
           </TouchableOpacity>
         </View>

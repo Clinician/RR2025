@@ -18,44 +18,53 @@ export class CameraService {
   private recordingReject: ((error: Error) => void) | null = null;
 
   /**
-   * Get optimal camera format for PPG recording
+   * Get optimal camera format for PPG recording with precise frame rate control
    */
-  private getOptimalCameraFormat(device: CameraDevice) {
+  private getOptimalCameraFormat(device: CameraDevice, targetFrameRate: number = 60) {
     try {
       // Get all available formats for the device
       const formats = device.formats;
       console.log(`Available formats for device ${device.id}:`, formats.length);
 
-      // Filter formats for video recording with high frame rates (60fps or higher)
-      const highFrameRateFormats = formats.filter(format => {
-        const supportsVideoHdr = format.supportsVideoHdr;
-        const maxFps = format.maxFps;
-        const minFps = format.minFps;
+      // Filter formats that can support our target frame rate exactly
+      // This replicates the C# logic of setting ActiveVideoMinFrameDuration = ActiveVideoMaxFrameDuration
+      const compatibleFormats = formats.filter(format => {
+        const hasVideoSupport = format.videoWidth && format.videoHeight;
+        const supportsTargetFps = format.minFps <= targetFrameRate && format.maxFps >= targetFrameRate;
         
-        // Prefer formats that support 60fps or higher for better PPG signal quality
-        return maxFps >= 60 && format.videoWidth && format.videoHeight;
+        return hasVideoSupport && supportsTargetFps;
       });
 
-      // If no high frame rate formats, fall back to any video format
-      const availableFormats = highFrameRateFormats.length > 0 ? highFrameRateFormats : formats.filter(f => f.videoWidth && f.videoHeight);
-
-      if (availableFormats.length === 0) {
-        console.warn('No suitable video formats found, using default');
-        return null;
+      if (compatibleFormats.length === 0) {
+        console.warn(`No formats support exactly ${targetFrameRate}fps, falling back to any video format`);
+        const fallbackFormats = formats.filter(f => f.videoWidth && f.videoHeight);
+        if (fallbackFormats.length === 0) {
+          console.warn('No suitable video formats found, using default');
+          return null;
+        }
+        return fallbackFormats[0];
       }
 
-      // Sort by preference: higher frame rate, reasonable resolution
-      const sortedFormats = availableFormats.sort((a, b) => {
-        // Prefer higher max frame rate
-        if (a.maxFps !== b.maxFps) {
-          return b.maxFps - a.maxFps;
+      // Sort by preference: exact frame rate match, then reasonable resolution
+      const sortedFormats = compatibleFormats.sort((a, b) => {
+        // Prefer formats where target FPS is closer to the middle of min/max range
+        // This ensures better stability (similar to C# CMTime precision)
+        const aFpsRange = a.maxFps - a.minFps;
+        const bFpsRange = b.maxFps - b.minFps;
+        const aFpsPosition = (targetFrameRate - a.minFps) / aFpsRange;
+        const bFpsPosition = (targetFrameRate - b.minFps) / bFpsRange;
+        const aFpsScore = Math.abs(0.5 - aFpsPosition); // Prefer middle of range
+        const bFpsScore = Math.abs(0.5 - bFpsPosition);
+        
+        if (Math.abs(aFpsScore - bFpsScore) > 0.1) {
+          return aFpsScore - bFpsScore;
         }
         
-        // Prefer reasonable resolution (not too high to avoid performance issues)
+        // Prefer reasonable resolution 
         const aPixels = (a.videoWidth || 0) * (a.videoHeight || 0);
         const bPixels = (b.videoWidth || 0) * (b.videoHeight || 0);
         
-        // Prefer resolutions around 1080p (2M pixels) for good quality without excessive processing
+        // Target 1080p for optimal PPG processing (matches CV420YpCbCr8BiPlanarFullRange preference)
         const targetPixels = 1920 * 1080;
         const aDiff = Math.abs(aPixels - targetPixels);
         const bDiff = Math.abs(bPixels - targetPixels);
@@ -64,12 +73,15 @@ export class CameraService {
       });
 
       const selectedFormat = sortedFormats[0];
-      console.log('Selected camera format:', {
+      console.log('Selected camera format with precise frame rate control:', {
         videoWidth: selectedFormat.videoWidth,
         videoHeight: selectedFormat.videoHeight,
-        maxFps: selectedFormat.maxFps,
+        targetFps: targetFrameRate,
         minFps: selectedFormat.minFps,
-        supportsVideoHdr: selectedFormat.supportsVideoHdr
+        maxFps: selectedFormat.maxFps,
+        fpsRangeSupport: `${selectedFormat.minFps}-${selectedFormat.maxFps}fps`,
+        supportsVideoHdr: selectedFormat.supportsVideoHdr,
+        pixelFormat: 'Will use default (similar to CV420YpCbCr8BiPlanarFullRange)'
       });
 
       return selectedFormat;
@@ -107,18 +119,30 @@ export class CameraService {
       // Filter back cameras and select the most suitable one
       const backCameras = devices.filter(device => device.position === 'back');
       
-      // Prefer cameras with flash/torch capability and high frame rate support for PPG
-      // Priority order with guaranteed fallback:
-      // 1. Back camera with flash + torch + 60fps support
-      // 2. Back camera with flash + torch
-      // 3. Back camera with torch only
-      // 4. Any back camera (guaranteed fallback)
+      // Prefer cameras with flash/torch capability and precise 60fps support for PPG
+      // Priority order with guaranteed fallback (replicates C# GetCaptureDeviceFormat logic):
+      // 1. Back camera with flash + torch + exact 60fps support
+      // 2. Back camera with flash + torch + any 60fps+ support  
+      // 3. Back camera with flash + torch
+      // 4. Back camera with torch only
+      // 5. Any back camera (guaranteed fallback)
+      const targetFrameRate = 60;
+      
       this.device = backCameras.find(device => {
         const hasRequiredFeatures = device.hasTorch && device.hasFlash;
         if (!hasRequiredFeatures) return false;
         
-        // Check if device supports 60fps or higher
-        const highFrameRateFormat = device.formats.find(format => format.maxFps >= 60);
+        // Check if device supports exact target frame rate (similar to C# CMTime precision)
+        const exactFrameRateFormat = device.formats.find(format => 
+          format.minFps <= targetFrameRate && format.maxFps >= targetFrameRate
+        );
+        return !!exactFrameRateFormat;
+      }) || backCameras.find(device => {
+        const hasRequiredFeatures = device.hasTorch && device.hasFlash;
+        if (!hasRequiredFeatures) return false;
+        
+        // Fallback: any format that supports 60fps or higher
+        const highFrameRateFormat = device.formats.find(format => format.maxFps >= targetFrameRate);
         return !!highFrameRateFormat;
       }) || backCameras.find(device => 
         device.hasTorch && device.hasFlash
