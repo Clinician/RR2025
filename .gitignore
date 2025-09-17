@@ -66,6 +66,10 @@ yarn-error.log
 # testing
 /coverage
 
+# C#
+**/bin
+**/obj
+
 # Yarn
 .yarn/*
 !.yarn/patches
