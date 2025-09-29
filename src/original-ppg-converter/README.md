@@ -38,32 +38,11 @@ The input JSON file should contain video frame data in the following format:
 }
 ```
 
-### Sample Output Structure
+### Field Descriptions
 
-```json
-{
-  "ppgSignals": [
-    {
-      "timestamp": 1634567890000,
-      "signals": [120.5, 125.3, 130.1, ...],
-      "qualityWarning": false
-    }
-  ],
-  "totalFrames": 3,
-  "qualityWarnings": 0,
-  "processingTimeMs": 15.2,
-  "processedAt": "2024-01-15T10:30:45.123Z"
-}
-```
-
-## Usage Examples
-
-### Basic Usage
-```bash
-dotnet run sample_video_data.json
-```
-
-### Custom Output File
-```bash
-dotnet run my_video_data.json my_results.json
-```
+- **Width/Height**: Video frame dimensions in pixels
+- **PhoneModel**: Integer identifier for phone model (used in algorithm)
+- **Frames**: Array of video frames
+  - **Timestamp**: Frame timestamp in milliseconds
+  - **YData**: Y (luminance) channel data as byte array (Width × Height elements)
+  - **UVData**: UV (chrominance) channel data as byte array (interleaved U and V)
